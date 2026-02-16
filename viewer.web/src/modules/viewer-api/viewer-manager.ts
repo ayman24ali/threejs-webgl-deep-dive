@@ -3,6 +3,8 @@ import * as THREE from "three";
 import {GeometryManager} from "./managers/geometry-manager";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {LightManager} from "./managers/light-manager";
+import {EventEmitterManager} from "./managers/event-emitter-manager";
+import {MaterialManager} from "./managers/material-manager";
 
 export class ViewerManager {
   toast: any;
@@ -13,6 +15,8 @@ export class ViewerManager {
   controls!: OrbitControls;
   geometryManager: GeometryManager;
   lightManager:LightManager;
+  eventEmitter:EventEmitterManager;
+  materialManager:MaterialManager;
   cube: Mesh|undefined = undefined;
   clock: THREE.Clock = new THREE.Clock();
   
@@ -20,8 +24,10 @@ export class ViewerManager {
     this.toast = toast;
     this.container = containerRef;
     this.scene = new THREE.Scene();
-    this.geometryManager = new GeometryManager();
-    this.lightManager = new LightManager()
+    this.lightManager = new LightManager();
+    this.eventEmitter = new EventEmitterManager();
+    this.materialManager = new MaterialManager();
+    this.geometryManager = new GeometryManager(this.materialManager);
     this.initializeScene(containerRef);
     this.attachEvents();
   }
