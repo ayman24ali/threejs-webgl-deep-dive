@@ -1,10 +1,11 @@
-import {Mesh, Vector3} from "three";
+import {Mesh, Vector3, WebGLRenderTarget} from "three";
 import * as THREE from "three";
 import {GeometryManager} from "./managers/geometry-manager";
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import {LightManager} from "./managers/light-manager";
 import {EventEmitterManager} from "./managers/event-emitter-manager";
 import {MaterialManager} from "./managers/material-manager";
+import {PostProcessingPass} from "./managers/post-processing-pass";
 
 export class ViewerManager {
   toast: any;
@@ -13,8 +14,10 @@ export class ViewerManager {
   renderer: THREE.WebGLRenderer | undefined;
   container: HTMLDivElement;
   controls!: OrbitControls;
+  renderTarget: WebGLRenderTarget;
   geometryManager: GeometryManager;
   lightManager:LightManager;
+  postFx:{ scene: THREE.Scene; camera: THREE.OrthographicCamera; material: THREE.RawShaderMaterial };
   eventEmitter:EventEmitterManager;
   materialManager:MaterialManager;
   cube: Mesh|undefined = undefined;
@@ -28,6 +31,14 @@ export class ViewerManager {
     this.eventEmitter = new EventEmitterManager();
     this.materialManager = new MaterialManager();
     this.geometryManager = new GeometryManager(this.materialManager);
+    this.renderTarget = new WebGLRenderTarget( window.innerWidth,
+        window.innerHeight,
+        {
+          minFilter: THREE.LinearFilter,
+          magFilter: THREE.LinearFilter,
+          format: THREE.RGBAFormat
+        })
+    this.postFx = PostProcessingPass.createPostProcessPass()
     this.initializeScene(containerRef);
     this.attachEvents();
   }
@@ -83,7 +94,19 @@ export class ViewerManager {
     // rotatingObject.rotation.y += 0.01;
 
       (this.cube!.material as THREE.RawShaderMaterial).uniforms.uTime.value = this.clock.getElapsedTime();
+    // this.renderer?.render(this.scene, this.camera!);
+
+    this.renderer?.setRenderTarget(this.renderTarget);
     this.renderer?.render(this.scene, this.camera!);
+
+    // PASS 2: Framebuffer texture → Post-process shader → Screen
+    this.postFx.material.uniforms.tDiffuse.value = this.renderTarget.texture;
+    this.postFx.material.uniforms.uTime.value = this.clock.getElapsedTime();
+    this.postFx.material.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+
+    this.renderer?.setRenderTarget(null);
+    this.renderer?.render(this.postFx.scene, this.postFx.camera);
+
     requestAnimationFrame(() => this.animate(rotatingObject));
   }
   
